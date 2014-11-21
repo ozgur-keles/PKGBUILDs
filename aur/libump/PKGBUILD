@@ -1,0 +1,28 @@
+pkgname=libump
+pkgver=3
+pkgrel=0
+pkgdesc="ARMs Universal Memory Provider userspace library"
+arch=('armv7h')
+url="http://github.com/linux-sunxi/libump"
+license=('Apache-2.0')
+depends=()
+makedepends=('git')
+source=("git://github.com/linux-sunxi/libump.git")
+md5sums=('SKIP')
+provides=('libump')
+conflicts=('libump')
+replaces=('libump')
+
+build() {
+	cd ${srcdir}/${pkgname}
+	autoreconf -i
+	./configure --prefix=/usr
+	make
+}
+
+package() {
+	mkdir -p $pkgdir/usr/{include,lib}
+	cd ${srcdir}/${pkgname}
+	make install prefix=$pkgdir/usr/
+}
+
