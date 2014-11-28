@@ -1,7 +1,7 @@
 # arg 1:  the new package version
 # arg 2:  the old package version
 
-KERNEL_NAME=-sun7i
+KERNEL_NAME=-sun7i-ries
 KERNEL_VERSION=3.4.90-5-ARCH
 
 post_install () {

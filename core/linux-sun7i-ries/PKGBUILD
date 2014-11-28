@@ -3,7 +3,7 @@
 
 buildarch=4
 
-pkgbase=linux-sun7i
+pkgbase=linux-sun7i-ries
 _commit=e37d760b363888f3a65cd6455c99a75cac70a7b8
 _srcname=linux-sunxi-${_commit}
 _kernelname=${pkgbase#linux}
@@ -20,7 +20,7 @@ source=("https://github.com/linux-sunxi/linux-sunxi/archive/${_commit}.tar.gz"
         'working-bcmdhd-driver.patch'
         '0001-Backport-BFP-XOR-operation.patch')
 md5sums=('dbf73f4cb6b1399e73449f4e91bf5694'
-         '75d4998cd9544be9423d80564441ec31'
+         'a0df099e2a70888dcfb1b68e4569e76c'
          '07c260ca97572a830778362c7b744f9c'
          'ca5b466850782493b99e824d6efbea4d')
 
