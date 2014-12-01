@@ -1,0 +1,21 @@
+
+# Contributor: Özgür Keleş <ozgurkeles@gmail.com>
+
+pkgname=ries-fonts
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Ries Fonts"
+arch=('any')
+url='http://www.ries.com.tr/'
+license=('custom')
+depends=('fontconfig' 'xorg-font-utils')
+install=ries-fonts.install
+
+source=("fonts.tar.gz")
+md5sums=('a82a993137d927b203f92c26ede13083')
+
+package() {
+  cd ${srcdir}
+  install -d ${pkgdir}/usr/share/fonts/TTF
+  install -m 644 *.ttf ${pkgdir}/usr/share/fonts/TTF
+}
