@@ -20,7 +20,7 @@ source=("https://github.com/linux-sunxi/linux-sunxi/archive/${_commit}.tar.gz"
         'working-bcmdhd-driver.patch'
         '0001-Backport-BFP-XOR-operation.patch')
 md5sums=('dbf73f4cb6b1399e73449f4e91bf5694'
-         'a0df099e2a70888dcfb1b68e4569e76c'
+         'f8fcb57ffd6b0f83c250b32792b79019'
          '07c260ca97572a830778362c7b744f9c'
          'ca5b466850782493b99e824d6efbea4d')
 
