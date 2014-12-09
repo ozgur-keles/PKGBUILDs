@@ -20,13 +20,15 @@ source=("https://github.com/linux-sunxi/linux-sunxi/archive/${_commit}.tar.gz"
         'working-bcmdhd-driver.patch'
         '0001-Backport-BFP-XOR-operation.patch'
         '0001-ries-logolar-eklendi.patch'
-        '0001-ries-keypad-eklendi.patch')
+        '0001-ries-keypad-eklendi.patch'
+        '0001-ries-rs485-eklendi.patch')
 md5sums=('dbf73f4cb6b1399e73449f4e91bf5694'
          'e5cb8087774c32bfdc405bc75981c0f6'
          '07c260ca97572a830778362c7b744f9c'
          'ca5b466850782493b99e824d6efbea4d'
          '183138bedc6af0b5d2d9d4e79241b264'
-         'b49e52b1477ff3e03b67833fb2373865')
+         'b49e52b1477ff3e03b67833fb2373865'
+         '75b911113e61cef6eee1cc6b83f867ee')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -39,6 +41,7 @@ prepare() {
   git apply ../0001-Backport-BFP-XOR-operation.patch
   git apply ../0001-ries-logolar-eklendi.patch
   git apply ../0001-ries-keypad-eklendi.patch
+  git apply ../0001-ries-rs485-eklendi.patch
 
   # add pkgrel to extraversion
   sed -ri "s|^(EXTRAVERSION =)(.*)|\1 \2-${pkgrel}|" Makefile
