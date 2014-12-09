@@ -1,0 +1,51 @@
+From 1b0e4a3b00394841803bbed8a8f52c6ab46c2873 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgur.keles@ries.com.tr>
+Date: Tue, 9 Dec 2014 10:36:38 +0200
+Subject: [PATCH] ries keypad eklendi
+
+---
+ drivers/input/keyboard/sun4i-keypad.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/input/keyboard/sun4i-keypad.c b/drivers/input/keyboard/sun4i-keypad.c
+index 5e84c68..21fc478 100644
+--- a/drivers/input/keyboard/sun4i-keypad.c
++++ b/drivers/input/keyboard/sun4i-keypad.c
+@@ -44,6 +44,11 @@
+ #define SW_KPCTL_COLMASK    (0xff << 8)
+ #define SW_KPCTL_ROWMASK    (0xff << 16)
+ 
++/* SW_KP_TIMING */
++#define SW_KPTIMING_DBC_CYCLE      (0x400 << 16)
++#define SW_KPTIMING_SCAN_CYCLE    (0x100)
++
++
+ /* SW_KP_INT_CFG */
+ #define SW_KPINT_F_EN		(1 << 0)
+ #define SW_KPINT_R_EN		(1 << 1)
+@@ -80,10 +85,10 @@ struct sw_keypad_platdata {
+ };
+ 
+ static const uint32_t sw_keymap[] = {
+-    KEY(0, 0, KEY_1),  KEY(0, 1, KEY_2),  KEY(0, 2, KEY_3),  KEY(0, 3, KEY_4),  KEY(0, 4, KEY_5),  KEY(0, 5, KEY_6),  KEY(0, 6, KEY_7),  KEY(0, 7, KEY_8),
+-    KEY(1, 0, KEY_A),  KEY(1, 1, KEY_B),  KEY(1, 2, KEY_C),  KEY(1, 3, KEY_D),  KEY(1, 4, KEY_E),  KEY(1, 5, KEY_F),  KEY(1, 6, KEY_G),  KEY(1, 7, KEY_H),
+-    KEY(2, 0, KEY_A),  KEY(2, 1, KEY_B),  KEY(2, 2, KEY_C),  KEY(2, 3, KEY_D),  KEY(2, 4, KEY_E),  KEY(2, 5, KEY_F),  KEY(2, 6, KEY_G),  KEY(2, 7, KEY_H),
+-    KEY(3, 0, KEY_A),  KEY(3, 1, KEY_B),  KEY(3, 2, KEY_C),  KEY(3, 3, KEY_D),  KEY(3, 4, KEY_E),  KEY(3, 5, KEY_F),  KEY(3, 6, KEY_G),  KEY(3, 7, KEY_H),
++    KEY(0, 0, KEY_F1),  KEY(0, 1, KEY_DOWN),  KEY(0, 2, KEY_RIGHT),  KEY(0, 3, KEY_4),  KEY(0, 4, KEY_5),  KEY(0, 5, KEY_6),  KEY(0, 6, KEY_7),  KEY(0, 7, KEY_8),
++    KEY(1, 0, KEY_F2),  KEY(1, 1, KEY_ESC),  KEY(1, 2, KEY_RESERVED),  KEY(1, 3, KEY_D),  KEY(1, 4, KEY_E),  KEY(1, 5, KEY_F),  KEY(1, 6, KEY_G),  KEY(1, 7, KEY_H),
++    KEY(2, 0, KEY_F3),  KEY(2, 1, KEY_UP),  KEY(2, 2, KEY_ENTER),  KEY(2, 3, KEY_D),  KEY(2, 4, KEY_E),  KEY(2, 5, KEY_F),  KEY(2, 6, KEY_G),  KEY(2, 7, KEY_H),
++    KEY(3, 0, KEY_F4),  KEY(3, 1, KEY_LEFT),  KEY(3, 2, KEY_RESERVED),  KEY(3, 3, KEY_D),  KEY(3, 4, KEY_E),  KEY(3, 5, KEY_F),  KEY(3, 6, KEY_G),  KEY(3, 7, KEY_H),
+     KEY(4, 0, KEY_A),  KEY(4, 1, KEY_B),  KEY(4, 2, KEY_C),  KEY(4, 3, KEY_D),  KEY(4, 4, KEY_E),  KEY(4, 5, KEY_F),  KEY(4, 6, KEY_G),  KEY(4, 7, KEY_H),
+     KEY(5, 0, KEY_A),  KEY(5, 1, KEY_B),  KEY(5, 2, KEY_C),  KEY(5, 3, KEY_D),  KEY(5, 4, KEY_E),  KEY(5, 5, KEY_F),  KEY(5, 6, KEY_G),  KEY(5, 7, KEY_H),
+     KEY(6, 0, KEY_A),  KEY(6, 1, KEY_B),  KEY(6, 2, KEY_C),  KEY(6, 3, KEY_D),  KEY(6, 4, KEY_E),  KEY(6, 5, KEY_F),  KEY(6, 6, KEY_G),  KEY(6, 7, KEY_H),
+@@ -261,6 +266,7 @@ static void sw_keypad_start(struct sw_keypad *keypad)
+ 	/* Enable interrupt bits. */
+     writel(SW_KPINT_F_EN|SW_KPINT_R_EN, keypad->base + SW_KP_INT_CFG);
+     writel(SW_KPCTL_IFENB, keypad->base + SW_KP_CTL);
++    writel(SW_KPTIMING_DBC_CYCLE | SW_KPTIMING_SCAN_CYCLE, keypad->base + SW_KP_TIMING);
+ 
+     enable_irq(keypad->irq);
+ }
+-- 
+2.1.3
+
