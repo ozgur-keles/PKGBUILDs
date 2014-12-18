@@ -7,7 +7,7 @@ pkgbase=linux-armv7
 _srcname=linux-3.18
 _kernelname=${pkgbase#linux}
 _desc="ARMv7 multi-platform"
-pkgver=3.18.0
+pkgver=3.18.1
 pkgrel=1
 rcnrel=armv7-x2
 arch=('armv7h')
@@ -16,31 +16,34 @@ license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git' 'uboot-tools')
 options=('!strip')
 source=("http://www.kernel.org/pub/linux/kernel/v3.x/${_srcname}.tar.xz"
-        #"http://www.kernel.org/pub/linux/kernel/v3.x/patch-${pkgver}.xz"
+        "http://www.kernel.org/pub/linux/kernel/v3.x/patch-${pkgver}.xz"
         "http://rcn-ee.net/deb/sid-armhf/v${pkgver}-${rcnrel}/patch-${pkgver%.0}-${rcnrel}.diff.gz"
-        #"git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs${pkgver%.*}"
-        "git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs3.x-rcN"
+        "git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs${pkgver%.*}"
+        #"git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs3.x-rcN"
         '0001-ARM-atags-add-support-for-Marvell-s-u-boot.patch'
         '0002-ARM-atags-fdt-retrieve-MAC-addresses-from-Marvell-bo.patch'
         '0003-SMILE-Plug-device-tree-file.patch'
         '0004-fix-mvsdio-eMMC-timing.patch'
-        '0005-mmc-mvsdio-Work-around-broken-TX-DMA.patch'
+        '0005-mmc-mvsdio-Work-around-broken-TX-DMA.patch' 
+        '0001-AUFS-fix-for-3.18.1.patch'
         'config')
 md5sums=('9e854df51ca3fef8bfe566dbd7b89241'
-         '4828f7c68e0bcb8a28b7588a87e3ccf0'
+         '82864000fde42252dd5e80cceb971479'
+         'dbbb7115cbf9c11e4087d97f8eb2799a'
          'SKIP'
          '71c2bfdde7cdefb5788aac9d3dc3e35d'
          '9ba8dec6e78de09a0b0ac50d386a9c46'
          '0586896c14824b5e988597617f923f5e'
          'fc1cd549e20f3cf49d7b0af8b01cc900'
          '1c45963a5bfcb535864a86139346217d'
-         '29462527dec6e3c3529f0dd1ec8bc173')
+         'aa83d1bca3a3583aa4011d03ff23bfd5'
+         'fe77781fcc6a50e59745b31098a84c1f')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
 
   # add upstream patch
-  #git apply --whitespace=nowarn ../patch-${pkgver}
+  git apply --whitespace=nowarn ../patch-${pkgver}
 
   # RCN patch
   git apply ../patch-${pkgver%.0}-${rcnrel}.diff
@@ -62,6 +65,9 @@ prepare() {
   git apply ../aufs3-standalone/aufs3-base.patch
   git apply ../aufs3-standalone/aufs3-mmap.patch
   git apply ../aufs3-standalone/aufs3-standalone.patch
+
+  # Fix until patched upstream
+  git apply ../0001-AUFS-fix-for-3.18.1.patch
 
   cat "${srcdir}/config" > ./.config
 
