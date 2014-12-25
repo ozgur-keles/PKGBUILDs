@@ -9,10 +9,9 @@ depends=('libump')
 makedepends=('git')
 source=('config.mk')
 md5sums=('7f66d6856a4252d2ebe19c3984833511')
-provides=('libegl' 'libgles' 'libgl' 'mesa-libgl')
+provides=('libgles' 'libegl' 'khrplatform-devel' 'libgl' 'mesa' 'mesa-libgl')
 conflicts=('mesa' 'mesa-libgl')
-
-
+replaces=('libgles' 'libegl' 'khrplatform-devel' 'libgl' 'mesa' 'mesa-libgl')
 
 
 build() {
