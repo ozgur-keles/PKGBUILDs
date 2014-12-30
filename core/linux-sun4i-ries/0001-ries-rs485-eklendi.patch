@@ -1,0 +1,175 @@
+From fcdb5b6198b391154ce6b9fda711a61616f683fa Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgur.keles@ries.com.tr>
+Date: Tue, 9 Dec 2014 10:51:44 +0200
+Subject: [PATCH] ries rs485 eklendi
+
+---
+ drivers/tty/serial/8250/8250.c       | 25 +++++++++++++++++++++++++
+ drivers/tty/serial/8250/8250.h       | 10 ++++++++++
+ drivers/tty/serial/8250/8250_sunxi.c | 23 +++++++++++++++++++++++
+ 3 files changed, 58 insertions(+)
+
+diff --git a/drivers/tty/serial/8250/8250.c b/drivers/tty/serial/8250/8250.c
+index 894aeee..fa2d655 100644
+--- a/drivers/tty/serial/8250/8250.c
++++ b/drivers/tty/serial/8250/8250.c
+@@ -1269,6 +1269,11 @@ static void serial8250_stop_tx(struct uart_port *port)
+ 	struct uart_8250_port *up =
+ 		container_of(port, struct uart_8250_port, port);
+ 
++	if (serial_in(up, AUART_MAX485_ENABLE)) {
++		serial_out(up, AUART_MAX485_DE, 0);
++		up->tx_count = 0;
++	}
++
+ 	__stop_tx(up);
+ 
+ 	/*
+@@ -1285,6 +1290,9 @@ static void serial8250_start_tx(struct uart_port *port)
+ 	struct uart_8250_port *up =
+ 		container_of(port, struct uart_8250_port, port);
+ 
++	if (serial_in(up, AUART_MAX485_ENABLE))
++		serial_out(up, AUART_MAX485_DE, 1);
++
+ 	if (!(up->ier & UART_IER_THRI)) {
+ 		up->ier |= UART_IER_THRI;
+ 		serial_port_out(port, UART_IER, up->ier);
+@@ -1381,6 +1389,7 @@ serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
+ 			ch = 0;
+ 
+ 		flag = TTY_NORMAL;
++		if (serial_in(up, AUART_MAX485_ENABLE) == 0 || up->tx_count == 0) {
+ 		port->icount.rx++;
+ 
+ 		lsr |= up->lsr_saved_flags;
+@@ -1432,6 +1441,11 @@ serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
+ 			goto ignore_char;
+ 
+ 		uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
++	} else if (serial_in(up, AUART_MAX485_ENABLE)) {
++		up->tx_count--;
++		if (up->tx_count == 0)
++			serial_out(up, AUART_MAX485_DE, 0);
++	}
+ 
+ ignore_char:
+ 		lsr = serial_in(up, UART_LSR);
+@@ -1450,6 +1464,9 @@ void serial8250_tx_chars(struct uart_8250_port *up)
+ 	int count;
+ 
+ 	if (port->x_char) {
++		if (serial_in(up, AUART_MAX485_ENABLE)) {
++			up->tx_count++;
++		}
+ 		serial_out(up, UART_TX, port->x_char);
+ 		port->icount.tx++;
+ 		port->x_char = 0;
+@@ -1466,6 +1483,9 @@ void serial8250_tx_chars(struct uart_8250_port *up)
+ 
+ 	count = up->tx_loadsz;
+ 	do {
++		if (serial_in(up, AUART_MAX485_ENABLE)) {
++			up->tx_count++;
++		}
+ 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
+ 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+ 		port->icount.tx++;
+@@ -1943,6 +1963,11 @@ static int serial8250_startup(struct uart_port *port)
+ 	up->tx_loadsz = uart_config[up->port.type].tx_loadsz;
+ 	up->capabilities = uart_config[up->port.type].flags;
+ 	up->mcr = 0;
++	up->tx_count = 0;
++	
++	if (serial_in(up, AUART_MAX485_ENABLE)) {
++		serial_out(up, AUART_MAX485_DE, 0);
++	}
+ 
+ 	if (port->iotype != up->cur_iotype)
+ 		set_io_from_upio(port);
+diff --git a/drivers/tty/serial/8250/8250.h b/drivers/tty/serial/8250/8250.h
+index 5d23bd1..b4da740 100644
+--- a/drivers/tty/serial/8250/8250.h
++++ b/drivers/tty/serial/8250/8250.h
+@@ -37,6 +37,16 @@ struct uart_8250_port {
+ 	unsigned char		lsr_saved_flags;
+ #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
+ 	unsigned char		msr_saved_flags;
++
++	/*
++	* Eğer max485 veya türevi bir entegre kullanılıyorsa
++	* gönderme ve alma sürekli açık ise
++	* bu değişkenler ve tanımlamalar kullanılarak 485 sürülür hale getirilir.
++	*/
++	unsigned int tx_count;
++
++#define AUART_MAX485_ENABLE     256
++#define AUART_MAX485_DE		    257
+ };
+ 
+ struct old_serial_port {
+diff --git a/drivers/tty/serial/8250/8250_sunxi.c b/drivers/tty/serial/8250/8250_sunxi.c
+index 25fdcff..bb648b5 100644
+--- a/drivers/tty/serial/8250/8250_sunxi.c
++++ b/drivers/tty/serial/8250/8250_sunxi.c
+@@ -64,6 +64,7 @@ struct sw_serial_port {
+ 	struct resource *mmres;
+ 	u32 irq;
+ 	struct platform_device *pdev;
++	unsigned int max485_enable;
+ };
+ 
+ static int sw_serial_get_resource(struct sw_serial_port *sport)
+@@ -72,6 +73,7 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
+ 	struct clk *pclk = NULL;
+ 	char uart_para[16];
+ 	int ret;
++	unsigned int max485_enable;
+ 
+ 	/* get register base */
+ 	sport->mmres = platform_get_resource(sport->pdev, IORESOURCE_MEM, 0);
+@@ -111,6 +113,13 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
+ 		ret = -EINVAL;
+ 		goto free_pclk;
+ 	}
++
++	if (script_parser_fetch(uart_para, "uart_max485_enable", &max485_enable, sizeof(int)))
++		max485_enable = 0;
++
++	sport->max485_enable = max485_enable;
++
++
+ 	return 0;
+ 
+  free_pclk:
+@@ -132,6 +141,15 @@ static void sw_serial_out32(struct uart_port *p, int offset, int value)
+ {
+ 	struct sw_serial_port *d = p->private_data;
+ 
++	if (offset == AUART_MAX485_DE) {
++		gpio_write_one_pin_value(d->pio_hdle, value, "uart_max485_de");
++		return;
++	}
++
++	if (offset == AUART_MAX485_ENABLE) {
++		return;
++	}
++
+ 	if (offset == UART_LCR)
+ 		d->last_lcr = value;
+ 
+@@ -141,6 +159,11 @@ static void sw_serial_out32(struct uart_port *p, int offset, int value)
+ 
+ static unsigned int sw_serial_in32(struct uart_port *p, int offset)
+ {
++	if (offset == AUART_MAX485_ENABLE) {
++		struct sw_serial_port *d = p->private_data;
++		return d->max485_enable;
++	}
++
+ 	offset <<= p->regshift;
+ 
+ 	return readl(p->membase + offset);
+-- 
+2.1.3
+
