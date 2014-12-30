@@ -28,7 +28,7 @@ md5sums=('6cdd44f9131a854cdbf5ddad86187c57'
          'ca5b466850782493b99e824d6efbea4d'
          '520bde63dd6803f3332e9b26cb34cff9'
          '8d1f84619971cf0f2b76d86bec253ac8'
-         '4592842f7b5702452815d5601f43ab7a'
+         '757972631557f2b3651b70c05bf5f9ae'
          '183138bedc6af0b5d2d9d4e79241b264'
          'b49e52b1477ff3e03b67833fb2373865'
          '75b911113e61cef6eee1cc6b83f867ee'
@@ -38,7 +38,7 @@ prepare() {
   cd "${srcdir}/${_srcname}"
 
   cat "${srcdir}/config" > ./.config
-
+  
   git apply ../0001-Backport-BFP-XOR-operation.patch
   git apply ../0001-Backport-firmware-loader.patch
   git apply ../0001-block-partition-msdos-provide-UUIDs-for-partitions.patch
