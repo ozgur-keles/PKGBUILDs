@@ -4,8 +4,8 @@
 buildarch=4
 
 _rcver=3.19
-_rcrel=1
-_rcnrel=armv7-x0
+_rcrel=4
+_rcnrel=armv7-x2
 
 pkgbase=linux-armv7-rc
 _srcname=linux-3.$((${_rcver##*.}-1))
@@ -28,14 +28,14 @@ source=("http://www.kernel.org/pub/linux/kernel/v3.x/${_srcname}.tar.xz"
         '0004-fix-mvsdio-eMMC-timing.patch'
         'config')
 md5sums=('9e854df51ca3fef8bfe566dbd7b89241'
-         'ae18910200b003a2c0a77636b8612a88'
-         'be660b7996c1673d78a7f0e88bce6a48'
+         '7aa3aed1c5a65bb633e8c3e437ec0dfb'
+         '07b18a016a9253f2123914825580d7bc'
          'SKIP'
          '70b9ce2701ad3f43940d0172e4618549'
          'af7f56bc5712f264a55bb6603e64df0e'
          'a70066db5aa59f660dd7e31809b47e4c'
          'a27e0ba6c63e0656039e20eeb957fee1'
-         '973b2983e619dd22879c1d53c175ff69')
+         '7069d6a7585fce03114614f60147317a')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -274,8 +274,8 @@ _package-headers() {
 _package-smileplug() {
   pkgdesc="The Linux Kernel - ${_desc} - Marvell SMILE Plug"
   depends=('linux-armv7-rc')
-  conflicts=('linux-armv7-rc-mirabox' 'linux-armv7-rc-ax3' 'linux-armv7-rc-d3plug')
-  replaces=('linux-mvebu-smileplug')
+  provides=('linux-armv7-rc-uimage')
+  conflicts=('linux-armv7-rc-uimage')
 
   cd "${srcdir}/${_srcname}"
 
@@ -287,8 +287,8 @@ _package-smileplug() {
 _package-mirabox() {
   pkgdesc="The Linux Kernel - ${_desc} - Globalscale Mirabox"
   depends=('linux-armv7-rc')
-  conflicts=('linux-armv7-rc-smileplug' 'linux-armv7-rc-ax3' 'linux-armv7-rc-d3plug')
-  replaces=('linux-mvebu-mirabox')
+  provides=('linux-armv7-rc-uimage')
+  conflicts=('linux-armv7-rc-uimage')
 
   cd "${srcdir}/${_srcname}"
 
@@ -300,8 +300,8 @@ _package-mirabox() {
 _package-ax3() {
   pkgdesc="The Linux Kernel - ${_desc} - OpenBlocks AX3-4"
   depends=('linux-armv7-rc')
-  conflicts=('linux-armv7-rc-mirabox' 'linux-armv7-rc-smileplug' 'linux-armv7-rc-d3plug')  
-  replaces=('linux-mvebu-ax3')
+  provides=('linux-armv7-rc-uimage')
+  conflicts=('linux-armv7-rc-uimage')
 
   cd "${srcdir}/${_srcname}"
 
@@ -313,7 +313,8 @@ _package-ax3() {
 _package-d3plug() {
   pkgdesc="The Linux Kernel - ${_desc} - Globalscale D3Plug"
   depends=('linux-armv7-rc')
-  conflicts=('linux-armv7-rc-mirabox' 'linux-armv7-rc-smileplug' 'linux-armv7-rc-ax3')
+  provides=('linux-armv7-rc-uimage')
+  conflicts=('linux-armv7-rc-uimage')
 
   cd "${srcdir}/${_srcname}"
 
