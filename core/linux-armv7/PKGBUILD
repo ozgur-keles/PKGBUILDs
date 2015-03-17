@@ -7,8 +7,8 @@ pkgbase=linux-armv7
 _srcname=linux-3.19
 _kernelname=${pkgbase#linux}
 _desc="ARMv7 multi-platform"
-pkgver=3.19.0
-pkgrel=2
+pkgver=3.19.1
+pkgrel=3
 rcnrel=armv7-x3
 arch=('armv7h')
 url="http://www.kernel.org/"
@@ -16,31 +16,34 @@ license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git' 'uboot-tools')
 options=('!strip')
 source=("http://www.kernel.org/pub/linux/kernel/v3.x/${_srcname}.tar.xz"
-        #"http://www.kernel.org/pub/linux/kernel/v3.x/patch-${pkgver}.xz"
+        "http://www.kernel.org/pub/linux/kernel/v3.x/patch-${pkgver}.xz"
         "http://rcn-ee.net/deb/sid-armhf/v${pkgver}-${rcnrel}/patch-${pkgver%.0}-${rcnrel}.diff.gz"
-        #"git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs${pkgver%.*}"
-        "git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs3.x-rcN"
+        "git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs${pkgver%.*}"
+        #"git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs3.x-rcN"
         '0001-ARM-atags-add-support-for-Marvell-s-u-boot.patch'
         '0002-ARM-atags-fdt-retrieve-MAC-addresses-from-Marvell-bo.patch'
         '0003-SMILE-Plug-device-tree-file.patch'
         '0004-fix-mvsdio-eMMC-timing.patch'
         '0005-net-smsc95xx-Allow-mac-address-to-be-set-as-a-parame.patch'
+        '0006-USB-armory-support.patch'
         'config')
 md5sums=('d3fc8316d4d4d04b65cbc2d70799e763'
-         '7026d1bb4abcbd3b2598e6f068a21a4e'
+         '2f2822cf2d84a8ec3a8b044e732cf45b'
+         '0f085618a0d85d406320e8bbba7fbec1'
          'SKIP'
-         '98931609e0e5c0beb3dbaabfb669b872'
-         'b7aa41223a0eff197ab905d9791e4ec4'
-         'd71cd90ee737afc07708fae7e449d651'
-         '950087add736d74afacd54bcfe8908d9'
-         'd6ef79617d7e59e841f4f3d65501a6d8'
+         '4e3bed0d1833836968ebf0d7947980a2'
+         'b9a9593d6724ff6a1aed7e0536939b26'
+         'fe82fa383a4295182182e9247f1298aa'
+         '2d1065176c31853f2238718f97bf2b80'
+         '377debc0c9f280d10e4c4f092b9c9bfc'
+         '8497959df9de7032e46fe68d207feaac'
          'ae3dc19260a86e04658a5b6c2a71d76a')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
 
   # add upstream patch
-  #git apply --whitespace=nowarn ../patch-${pkgver}
+  git apply --whitespace=nowarn ../patch-${pkgver}
 
   # RCN patch
   git apply ../patch-${pkgver%.0}-${rcnrel}.diff
@@ -51,6 +54,7 @@ prepare() {
   git apply ../0003-SMILE-Plug-device-tree-file.patch
   git apply ../0004-fix-mvsdio-eMMC-timing.patch
   git apply ../0005-net-smsc95xx-Allow-mac-address-to-be-set-as-a-parame.patch
+  git apply ../0006-USB-armory-support.patch
 
   # AUFS patches
   cp -ru "${srcdir}/aufs3-standalone/Documentation" .
