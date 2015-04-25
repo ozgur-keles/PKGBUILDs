@@ -27,7 +27,7 @@ source=("https://github.com/linux-sunxi/linux-sunxi/archive/${_commit}.tar.gz"
         '0001-bug-fix-sun4i-keypad.patch')
 md5sums=('6cdd44f9131a854cdbf5ddad86187c57'
          'f74bbefcd84c7d6626e2a763c6791556'
-         'ef1e8f1166649e1f7b58198ed9822bbf'
+         'f19d79f625d587d5ea2d4e87a02d0cf4'
          'ca5b466850782493b99e824d6efbea4d'
          '520bde63dd6803f3332e9b26cb34cff9'
          '743724d560cf34dadefb8e976a31319c'
