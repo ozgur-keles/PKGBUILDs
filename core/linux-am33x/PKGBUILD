@@ -7,9 +7,9 @@ pkgbase=linux-am33x
 _srcname=linux-4.0
 _kernelname=${pkgbase#linux}
 _desc="TI AM335x Beaglebone (Black)"
-pkgver=4.0.1
+pkgver=4.0.4
 pkgrel=1
-rcnrel=bone1
+rcnrel=bone4
 arch=('armv7h')
 url="http://www.kernel.org/"
 license=('GPL2')
@@ -22,10 +22,10 @@ source=("http://www.kernel.org/pub/linux/kernel/v4.x/${_srcname}.tar.xz"
         #"git+https://github.com/sfjro/aufs4-standalone.git#branch=aufs4.x-rcN"
         'config')
 md5sums=('a86916bd12798220da9eb4a1eec3616d'
-         '80f12ad5146991a83bb35ab141c24f81'
-         'c1f4926edcf829ca9c2b66ab20243934'
+         '30de8c55237264deee4d4fc60eee78fd'
+         'f3b854338789269296302d95346882a1'
          'SKIP'
-         'ab6fcee30e0cced6193b4085d4919917')
+         'd40906c7ac40da506f6dcc6c60e97535')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
