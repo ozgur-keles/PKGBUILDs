@@ -35,6 +35,6 @@ build() {
 package() {
 	mkdir -p $pkgdir/usr/{include,lib}
 	cd $srcdir/build
-	make install prefix=$pkgdir/usr
+	make install prefix=$pkgdir/usr/
 }
 
