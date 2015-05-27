@@ -1,0 +1,3 @@
+MALI_VERSION ?= r3p2-01rel1
+MALI_LIBS_ABI ?= armhf
+MALI_EGL_TYPE ?= x11
