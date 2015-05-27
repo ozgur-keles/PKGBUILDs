@@ -10,8 +10,8 @@ makedepends=('git')
 source=('config.mk')
 md5sums=('d17c7fb2ec445d91c0d0f5c9b5d34666')
 provides=('libgles' 'libegl' 'khrplatform-devel' 'libgl' 'mesa' 'mesa-libgl')
-conflicts=('mesa' 'mesa-libgl')
-replaces=('libgles' 'libegl' 'khrplatform-devel' 'libgl' 'mesa' 'mesa-libgl')
+conflicts=('mesa' 'mesa-libgl' 'sunxi-mali')
+replaces=('libgles' 'libegl' 'khrplatform-devel' 'libgl' 'mesa' 'mesa-libgl' 'sunxi-mali')
 
 
 build() {
