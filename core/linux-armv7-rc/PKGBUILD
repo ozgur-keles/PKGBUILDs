@@ -3,8 +3,8 @@
 
 buildarch=4
 
-_rcver=4.1
-_rcrel=4
+_rcver=4.3
+_rcrel=3
 _rcnrel=armv7-x0
 
 pkgbase=linux-armv7-rc
@@ -27,17 +27,21 @@ source=("http://www.kernel.org/pub/linux/kernel/v4.x/${_srcname}.tar.xz"
         '0004-fix-mvsdio-eMMC-timing.patch'
         '0005-net-smsc95xx-Allow-mac-address-to-be-set-as-a-parame.patch'
         '0006-ARM-TLV320AIC23-SoC-Audio-Codec-Fix-errors-reported-.patch'
+        '0007-set-default-cubietruck-led-triggers.patch'
+        '0008-USB-armory-support.patch'
         'config')
-md5sums=('a86916bd12798220da9eb4a1eec3616d'
-         'e51c8a5fbd2b7839cdf8f8505a7999df'
-         '324544c3a477e0d86ff54fbbfbda2b80'
-         'ae06c5772832d351d49b8ac0fe4a9ce2'
-         '7057519a84b74c1a4ec4981396edd845'
-         '1ce8c458126bfaf005366bc2e70ad866'
-         '90911aad404f80fcf81488da57bf2906'
-         '1a9033f9bd00f5397ba5ce5bdc842220'
-         '648459624ebad128af1faa55a29d0e7d'
-         '5d0f89b10f43390bcdf513607e6b33bc')
+md5sums=('3d5ea06d767e2f35c999eeadafc76523'
+         '7b080fe7715b861b89b06868ed0b27f0'
+         '8f68b52ed2600d1337ad0ecbfab30ec9'
+         '61f728f854713d17a3d4ef00f8e38f1e'
+         'bc39bcc5d752155854f31eb7758db5e8'
+         'e871d819421abab551d8219b62cccdf9'
+         '05e37d0cd7670fe10502b56864b93c41'
+         'bef1f3ba7b87f467316de0ae99b40acf'
+         '3be6a6ddf93b89e90cc127268721845e'
+         'fe20decabf6b7d94cf2ecb4d15a07ba7'
+         '50dca48291316e4c0a7e918f08d5e3f5'
+         'bfb3a48e2c8a18d7319bb1e5c21ce9a0')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -55,6 +59,8 @@ prepare() {
   git apply ../0004-fix-mvsdio-eMMC-timing.patch
   git apply ../0005-net-smsc95xx-Allow-mac-address-to-be-set-as-a-parame.patch
   git apply ../0006-ARM-TLV320AIC23-SoC-Audio-Codec-Fix-errors-reported-.patch
+  git apply ../0007-set-default-cubietruck-led-triggers.patch
+  git apply ../0008-USB-armory-support.patch
 
   cat "${srcdir}/config" > ./.config
 

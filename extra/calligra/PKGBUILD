@@ -5,6 +5,7 @@
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - removed makedepend on vc - not for ARM
+#  - patch to remove qreal usage
 
 pkgbase=calligra
 pkgname=('calligra-braindump'
@@ -23,22 +24,36 @@ pkgname=('calligra-braindump'
          'calligra-sheets'
          'calligra-stage'
          'calligra-words')
-pkgver=2.9.4
-pkgrel=2
+pkgver=2.9.7
+pkgrel=1
 arch=('i686' 'x86_64')
 url='http://www.calligra-suite.org/'
 license=('FDL1.2' 'GPL2' 'LGPL')
-makedepends=('cmake' 'automoc4' 'boost' 'kdepimlibs' 'eigen' 'kdeedu-marble'
+makedepends=('cmake' 'automoc4' 'boost' 'kdepimlibs' 'eigen' 'libmarble4'
              'lcms2' 'libmariadbclient' 'freetds' 'xbase' 'libwpg' 'opencolorio'
              'libwps' 'gsl' 'glew' 'fftw' 'poppler-qt' 'libkdcraw' 'libodfgen'
              'openjpeg' 'kdegraphics-okular' 'pstoedit' 'libvisio'
              'libetonyek' 'libpqxx' 'libspnav' 'postgresql') # 'libqgit2'
 groups=('calligra')
-source=("http://download.kde.org/stable/${pkgbase}-${pkgver}/${pkgbase}-${pkgver}.tar.xz")
-md5sums=('12bf6bd00de3d7b589c1b1cfebca8f91')
+source=("http://download.kde.org/stable/${pkgbase}-${pkgver}/${pkgbase}-${pkgver}.tar.xz" 'libwps-0.4.patch'
+        'qreal.patch')
+md5sums=('d99288b1492cf9ae6a6f602b513b93e7'
+         '6ea15f8b3938838d89ea0aa08921afd1'
+         '266289d4f69f24941d3e94d526a350f2')
 
 prepare() {
   mkdir build
+
+# Fix build against libwps 0.4
+  cd $pkgbase-$pkgver
+  patch -p1 -i "$srcdir"/libwps-0.4.patch
+
+  patch -p1 -i ../qreal.patch
+
+# Fix build against libmarble4
+  sed -e 's|PATH_SUFFIXES marble|PATH_SUFFIXES marble4|g' -i CMakeLists.txt
+  sed -e 's|#include <marble/|#include <marble4/|g' -e 's|#include "marble/|#include "marble4/|g' \
+    -i plugins/reporting/maps/{*.cpp,*.h,marble/*.h} -i kexi/plugins/forms/widgets/mapbrowser/{*.cpp,*.h}
 }
 
 build() {
@@ -48,7 +63,10 @@ build() {
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DBUILD_active=OFF \
-    -DWITH_Soprano=OFF
+    -DWITH_Soprano=OFF \
+    -DMARBLE_INCLUDE_DIR=/usr/include/marble4 \
+    -DMARBLE_GLOBAL_HEADER=/usr/include/marble4/MarbleGlobal.h \
+    -DMARBLE_LIBRARIES=/usr/lib/libmarblewidget.so
   make
 }
 
@@ -86,7 +104,7 @@ package_calligra-libs() {
 package_calligra-plugins() {
   pkgdesc="Plugins for the Calligra office suite"
   depends=('calligra-libs' 'calligra-filters' 'libspnav')
-  optdepends=('kdeedu-marble: map shape for Calligra')
+  optdepends=('libmarble4: map shape for Calligra')
   conflicts=('koffice-plugins' 'koffice-kchart')
   replaces=('koffice-plugins' 'koffice-kchart' 'koffice-kformula')
   install=calligra-plugins.install
@@ -119,7 +137,7 @@ package_calligra-kexi() {
               'freetds: Sybase & MS SQL driver'
               'xbase: XBase driver'
               'calligra-sheets: Spreadsheet-to-Kexi-table import plugin'
-              'kdeedu-marble: map form widget'
+              'libmarble4: map form widget'
               'calligra-plugins: extra calligra plugins')
   conflicts=('koffice-kexi' 'koffice-kexi-doc' 'calligra-kexi-doc')
   replaces=('koffice-kexi' 'koffice-kexi-doc' 'calligra-kexi-doc')

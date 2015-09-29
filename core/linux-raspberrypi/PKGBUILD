@@ -7,56 +7,55 @@
 buildarch=20
 
 pkgbase=linux-raspberrypi
-_commit=02444e9dcc09062875b5c744a90009b2cb96ef82
+_commit=d2b2388d05d8a97b0ba14fcf2b71f19f66bc4d02
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi"
-pkgver=3.18.14
+pkgver=4.1.8
 pkgrel=1
-bfqver=v7r7
+bfqver=v7r8
 arch=('armv6h' 'armv7h')
 url="http://www.kernel.org/"
 license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git')
 options=('!strip')
 source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
-        #"git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs3.x-rcN"
-        "git://git.code.sf.net/p/aufs/aufs3-standalone#branch=aufs${pkgver%.*}.1+" # 3.18.1+
-        "ftp://teambelgium.net/bfq/patches/${pkgver:0:4}.0-${bfqver}/0001-block-cgroups-kconfig-build-bits-for-BFQ-${bfqver}-${pkgver:0:4}.patch"
-        "ftp://teambelgium.net/bfq/patches/${pkgver:0:4}.0-${bfqver}/0002-block-introduce-the-BFQ-${bfqver}-I-O-sched-for-${pkgver:0:4}.patch"
-        "ftp://teambelgium.net/bfq/patches/${pkgver:0:4}.0-${bfqver}/0003-block-bfq-add-Early-Queue-Merge-EQM-to-BFQ-${bfqver}-for-${pkgver:0:4}.0.patch"
+        "git+https://github.com/sfjro/aufs4-standalone.git#branch=aufs${pkgver%.*}"
+        "ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0001-block-cgroups-kconfig-build-bits-for-BFQ-${bfqver}-${pkgver%.*}.patch"
+        "ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0002-block-introduce-the-BFQ-${bfqver}-I-O-sched-for-${pkgver%.*}.patch"
+        "ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0003-block-bfq-add-Early-Queue-Merge-EQM-to-BFQ-${bfqver}-for-${pkgver%.*}.0.patch"
         'config.txt'
         'cmdline.txt'
         'config.v6'
         'config.v7')
-md5sums=('a49075bc01b2f38066539e6e941cdf12'
+md5sums=('6ccf410fadfa1588d9c4eef1d535695e'
          'SKIP'
-         '1c7c2d0338939a9e6953a64d80861471'
-         'a81346cce95baeac2c56cf60d3c7e5b6'
-         '8f2743651280f5a022e541f4e95e5546'
+         '74bf103542cbdee0363819309adb97a2'
+         'f09baae3c7add4ed9bedde22ae3efe19'
+         'bd8cc19a31d1cf8aeeaf9245057c4f9b'
          '9a3c82da627b317ec79c37fd6afba569'
          '60bc3624123c183305677097bcd56212'
-         '7de55fa92846a957a092087799dbbd7f'
-         '01b994b4ebdba08cdfddae369c934687')
+         '8303e1402d4f0d51112e71d5e90e29df'
+         'b9c7fd8054039cf27c0bd108ec9c185d')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
 
   msg2 "AUFS patches"
-  cp -ru "${srcdir}/aufs3-standalone/Documentation" .
-  cp -ru "${srcdir}/aufs3-standalone/fs" .
-  cp -ru "${srcdir}/aufs3-standalone/include/uapi/linux/aufs_type.h" ./include/linux
-  cp -ru "${srcdir}/aufs3-standalone/include/uapi/linux/aufs_type.h" ./include/uapi/linux
+  cp -ru "${srcdir}/aufs4-standalone/Documentation" .
+  cp -ru "${srcdir}/aufs4-standalone/fs" .
+  cp -ru "${srcdir}/aufs4-standalone/include/uapi/linux/aufs_type.h" ./include/linux
+  cp -ru "${srcdir}/aufs4-standalone/include/uapi/linux/aufs_type.h" ./include/uapi/linux
 
-  patch -Np1 -i ../aufs3-standalone/aufs3-kbuild.patch
-  patch -Np1 -i ../aufs3-standalone/aufs3-base.patch
-  patch -Np1 -i ../aufs3-standalone/aufs3-mmap.patch
-  patch -Np1 -i ../aufs3-standalone/aufs3-standalone.patch
+  patch -Np1 -i ../aufs4-standalone/aufs4-kbuild.patch
+  patch -Np1 -i ../aufs4-standalone/aufs4-base.patch
+  patch -Np1 -i ../aufs4-standalone/aufs4-mmap.patch
+  patch -Np1 -i ../aufs4-standalone/aufs4-standalone.patch
 
   msg2 "Add BFQ patches"
-  patch -Np1 -i "${srcdir}/0001-block-cgroups-kconfig-build-bits-for-BFQ-${bfqver}-${pkgver:0:4}.patch"
-  patch -Np1 -i "${srcdir}/0002-block-introduce-the-BFQ-${bfqver}-I-O-sched-for-${pkgver:0:4}.patch"
-  patch -Np1 -i "${srcdir}/0003-block-bfq-add-Early-Queue-Merge-EQM-to-BFQ-${bfqver}-for-${pkgver:0:4}.0.patch"
+  patch -Np1 -i "${srcdir}/0001-block-cgroups-kconfig-build-bits-for-BFQ-${bfqver}-${pkgver%.*}.patch"
+  patch -Np1 -i "${srcdir}/0002-block-introduce-the-BFQ-${bfqver}-I-O-sched-for-${pkgver%.*}.patch"
+  patch -Np1 -i "${srcdir}/0003-block-bfq-add-Early-Queue-Merge-EQM-to-BFQ-${bfqver}-for-${pkgver%.*}.0.patch"
 
   msg "Prepare to build"
   [[ $CARCH == "armv6h" ]] && cat "${srcdir}/config.v6" > ./.config
@@ -122,7 +121,7 @@ _package() {
 
   [[ $CARCH == "armv6h" ]] && perl scripts/mkknlimg --dtok arch/$KARCH/boot/zImage "${pkgdir}/boot/kernel.img"
   [[ $CARCH == "armv7h" ]] && perl scripts/mkknlimg --dtok arch/$KARCH/boot/zImage "${pkgdir}/boot/kernel7.img"
-  mv arch/$KARCH/boot/dts/*-overlay.dtb "${pkgdir}/boot/overlays"
+  mv arch/$KARCH/boot/dts/overlays/{*.dtb,README} "${pkgdir}/boot/overlays"
   mv arch/$KARCH/boot/dts/*.dtb "${pkgdir}/boot"
 
   # set correct depmod command for install
