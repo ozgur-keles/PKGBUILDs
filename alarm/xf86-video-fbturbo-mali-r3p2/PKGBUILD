@@ -1,7 +1,7 @@
 # Maintainer: smotocel69 <smotocel69@gmail.com>
 # Contribuitor: Georges Discry <georges at discry dot be>
 
-pkgname=xf86-video-fbturbo
+pkgname=xf86-video-fbturbo-mali-r3p2
 _gitname=xf86-video-fbturbo
 pkgver=189.6ec85e9
 pkgrel=1
@@ -20,7 +20,7 @@ md5sums=('SKIP')
 
 pkgver() {
   cd "${SRCDEST}/${_gitname}"
-  echo $(git rev-list --count master).$(git rev-parse --short master)
+  echo $(git rev-list --count mali-r3p2-support).$(git rev-parse --short mali-r3p2-support)
 }
 
 build() {
