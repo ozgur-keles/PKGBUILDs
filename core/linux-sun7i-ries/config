@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.4.103-5 Kernel Configuration
+# Linux/arm 3.4.103-6 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1163,6 +1163,7 @@ CONFIG_SUNXI_NAND_COMPAT_DEV=y
 CONFIG_SUNXI_DBGREG=m
 # CONFIG_ATMEL_PWM is not set
 CONFIG_SUNXI_PWM=m
+CONFIG_RIES_POWERFAIL=y
 # CONFIG_ICS932S401 is not set
 # CONFIG_ENCLOSURE_SERVICES is not set
 # CONFIG_APDS9802ALS is not set
