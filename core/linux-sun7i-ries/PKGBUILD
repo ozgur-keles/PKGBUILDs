@@ -25,7 +25,8 @@ source=("https://github.com/linux-sunxi/linux-sunxi/archive/${_commit}.tar.gz"
         '0001-ries-keypad-eklendi.patch'
         '0001-ries-rs485-eklendi.patch'
         '0001-bug-fix-sun4i-keypad.patch'
-        '0001-Merge-remote-tracking-branch-github-mali-r3p2-201401.patch')
+        '0001-Merge-remote-tracking-branch-github-mali-r3p2-201401.patch'
+        '0001-power-fail-driver-added.patch')
 md5sums=('6cdd44f9131a854cdbf5ddad86187c57'
          'f74bbefcd84c7d6626e2a763c6791556'
          'f31e3f92d5ae15e267351bbb903667f7'
@@ -36,7 +37,8 @@ md5sums=('6cdd44f9131a854cdbf5ddad86187c57'
          'b49e52b1477ff3e03b67833fb2373865'
          '75b911113e61cef6eee1cc6b83f867ee'
          '0e4a79c87a2a02f9571723383b443a4c'
-         '5f56a6197be379b4cb3c04fd9d1b2071')
+         '5f56a6197be379b4cb3c04fd9d1b2071'
+         'dcfa8363b47140d36a62731e9a58ddce')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -52,6 +54,7 @@ prepare() {
   git apply ../0001-ries-rs485-eklendi.patch
   git apply ../0001-bug-fix-sun4i-keypad.patch
   git apply ../0001-Merge-remote-tracking-branch-github-mali-r3p2-201401.patch
+  git apply ../0001-power-fail-driver-added.patch
 
 
   # add pkgrel to extraversion

@@ -1,0 +1,466 @@
+From 5f8516389a097cfa91c68478614329d33a1903e7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgurkeles@gmail.com>
+Date: Sat, 10 Oct 2015 14:35:41 +0300
+Subject: [PATCH] power-fail driver added
+
+---
+ drivers/misc/Kconfig      |   9 +
+ drivers/misc/Makefile     |   1 +
+ drivers/misc/power-fail.c | 415 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 425 insertions(+)
+ create mode 100644 drivers/misc/power-fail.c
+
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index b444606..2cab96a 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -87,7 +87,16 @@ config SUNXI_PWM
+ 	  module will be called pwm-sunxi.  This driver supports 
+ 	  a sysfs interface at /sys/class/pwm-sunxi as well as the 
+ 	  kernel pwm interface. 
++
++config RIES_POWERFAIL 
++	tristate "Ries Power-fail deriver" 
++	help 
++	  Say Y here if you want Power-fail Support 
+  
++	  To compile this driver as a module, choose M here: the 
++	  module will be called power-fail.  This driver supports 
++	  a dev interface at /dev/power-fail as well as the 
++	  kernel char device interface.   
+ 
+ config AB8500_PWM
+ 	bool "AB8500 PWM support"
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index 57a707c..7355e92 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -55,3 +55,4 @@ obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
+ obj-$(CONFIG_SUN4I_VIBRATOR)	+= sun4i-vibrator.o
+ obj-$(CONFIG_SUNXI_DBGREG)		+= sunxi-dbgreg.o
+ obj-$(CONFIG_SUNXI_PWM)		+= pwm-sunxi.o 
++obj-$(CONFIG_RIES_POWERFAIL)	+= power-fail.o
+diff --git a/drivers/misc/power-fail.c b/drivers/misc/power-fail.c
+new file mode 100644
+index 0000000..517ec67
+--- /dev/null
++++ b/drivers/misc/power-fail.c
+@@ -0,0 +1,415 @@
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/io.h>
++#include <linux/miscdevice.h>
++#include <linux/cdev.h>
++#include <linux/fs.h>
++#include <linux/interrupt.h>
++#include <linux/irq.h>
++#include <linux/reboot.h>
++#include <linux/errno.h>
++#include <linux/delay.h>
++#include <linux/sched.h>
++#include <linux/wait.h>
++#include <linux/jiffies.h>
++#include <linux/sched.h>
++#include <asm/uaccess.h>
++#include <asm/atomic.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++
++#ifdef CONFIG_PLAT_SUNXI
++#include <plat/sys_config.h>
++#ifdef CONFIG_FB_SUNXI
++
++#include <video/sunxi_disp_ioctl.h>
++
++extern __s32 LCD_PWM_EN(__u32 sel, __bool b_en);
++extern __s32 LCD_BL_EN(__u32 sel, __bool b_en);
++
++static void disp_suspend(void)
++{
++    int sel = 0;
++    for (sel = 0; sel < 2; sel++) {
++        LCD_BL_EN(sel, 0); /* config lcd_bl_en pin to close lcd backlight */
++        LCD_PWM_EN(sel, 0); /* close pwm module */
++    }
++}
++
++static void disp_resume(void)
++{
++    int sel = 0;
++    for (sel = 0; sel < 2; sel++) {
++        LCD_PWM_EN(sel, 1); /* open pwm module */
++        LCD_BL_EN(sel, 1); /* config lcd_bl_en pin to open lcd backlight */
++    }
++}
++
++#endif
++
++
++
++#define  TMR_IRQ_EN_REG         (0x0)
++#define  TMR_IRQ_STA_REG        (0x4)
++#define  TMR5_CTRL_REG          (0x60)
++#define  TMR5_INTV_VALUE_REG    (0x64)
++
++#define  TMR5_CTRL_MODE       (0<<7)
++#define  TMR5_CTRL_CLK_PRES   (7<<4)
++#define  TMR5_CTRL_CLK_SRC    (1<<2)
++#define  TMR5_CTRL_RELOAD     (1<<1)
++#define  TMR5_CTRL_EN         (1<<0)
++
++#define  TMR5_IRQ_EN         (1<<5)
++#define  TMR5_IRQ_PEND       (1<<5)
++
++#endif
++
++
++#define DEVICE_NAME "power-fail"
++
++
++#define POWER_FAIL_EVENT_BIT        0
++#define POWER_FAIL_LCD_CLOSE_BIT    1
++#define POWER_FAIL_IRQ_BIT          2
++
++
++static unsigned long powerfail_bits = 0;
++static struct timespec last_power_up_time;
++static struct timespec power_down_time;
++
++static void close_lcd(void)
++{
++    if (!test_and_set_bit(POWER_FAIL_LCD_CLOSE_BIT, &powerfail_bits)) {
++#ifdef CONFIG_FB_SUNXI
++        disp_suspend();
++#endif
++    }
++}
++
++static void open_lcd(void)
++{
++    if (test_and_clear_bit(POWER_FAIL_LCD_CLOSE_BIT, &powerfail_bits)) {
++#ifdef CONFIG_FB_SUNXI
++        disp_resume();
++#endif
++        if(test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++            struct timespec open_lcd_time;
++            jiffies_to_timespec(jiffies, &open_lcd_time);
++            printk(KERN_INFO DEVICE_NAME ": (Open Lcd Time - Power Down Time) %d sec %ld nsec\n", (int)(open_lcd_time.tv_sec - power_down_time.tv_sec), (long)(open_lcd_time.tv_nsec - power_down_time.tv_nsec));
++        }
++    }
++}
++
++
++static void powerfail_event(void)
++{
++    jiffies_to_timespec(jiffies, &power_down_time);
++
++    if (!test_and_set_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits) && (power_down_time.tv_sec - last_power_up_time.tv_sec) >= 5) {
++        kill_cad_pid(SIGPWR, 1);
++        close_lcd();
++    }
++}
++
++static void powerup_event(void)
++{
++    if (test_and_clear_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++        jiffies_to_timespec(jiffies, &last_power_up_time);
++    }
++}
++
++#ifdef CONFIG_PLAT_SUNXI
++
++typedef struct {
++    int mul_sel;
++    int pull;
++    int drv_level;
++    int data;
++} gpio_status_set_t;
++
++typedef struct {
++    char    gpio_name[32];
++    int port;
++    int port_num;
++    gpio_status_set_t user_gpio_status;
++    gpio_status_set_t hardware_gpio_status;
++} system_gpio_set_t;
++
++static system_gpio_set_t * sunxi_get_gpio_set_t_addr(u32 p_handler, const char *gpio_name)
++{
++    char *tmp_buf;
++    __u32 group_count_max;
++    system_gpio_set_t *user_gpio_set = NULL, *tmp_sys_gpio_data;
++    __u32 i;
++
++
++    if (!p_handler)
++        return NULL;
++
++    tmp_buf = (char *)p_handler;
++    group_count_max = *(int *)tmp_buf;
++    tmp_sys_gpio_data = (system_gpio_set_t *)(tmp_buf + 16);
++
++    if (group_count_max == 1) {
++        user_gpio_set = tmp_sys_gpio_data;
++    } else if (gpio_name) {
++        for (i = 0; i < group_count_max; i++) {
++            if (strcmp(gpio_name, tmp_sys_gpio_data->gpio_name)) {
++                tmp_sys_gpio_data++;
++                continue;
++            }
++            user_gpio_set = tmp_sys_gpio_data;
++            break;
++        }
++    }
++
++    return user_gpio_set;
++}
++
++#define PIO_REG_DATA(n)                   ((volatile unsigned int *)(SW_VA_PORTC_IO_BASE + ((n)-1)*0x24 + 0x10))
++
++
++
++static int fail_count = 0;
++static unsigned int power_fail_port_handler = 0;
++static volatile unsigned int *power_fail_port_addr = NULL;
++static int power_fail_port_num;
++static unsigned int max_fail_count = 0;
++static int power_fail_used = 0;
++
++
++
++
++
++
++static irqreturn_t sunxi_isr_timer5(int irq, void *dummy)
++{
++    if (readl(SW_VA_TIMERC_IO_BASE + TMR_IRQ_STA_REG) & TMR5_IRQ_PEND) {
++
++        /*
++        //gpio_write_one_pin_value(power_fail_port_handler, timer_toogle, NULL);
++        //if (power_fail_port_addr) {
++        //    *power_fail_port_addr ^= (1 << power_fail_port_num);
++        //}
++
++        if (fail_count)
++            fail_count = 0;
++        else
++            fail_count = 1;
++        gpio_write_one_pin_value(power_fail_port_handler, fail_count, NULL);
++        fail_count++;
++        if (fail_count >= 1000)
++            fail_count = 0;*/
++
++        if (!test_and_set_bit(POWER_FAIL_IRQ_BIT, &powerfail_bits)) {
++            if (power_fail_port_addr) { //POWER_FAIL_IRQ_BIT
++                if ( !((*power_fail_port_addr) & (1 << power_fail_port_num)) ) {
++                    fail_count++;
++                } else {
++                    fail_count = 0;
++                }
++                
++                if (fail_count >= max_fail_count && !test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++                    powerfail_event();
++                }
++
++                if (!fail_count && test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++                    powerup_event();
++                }
++                
++            }
++            
++
++            writel(TMR5_IRQ_PEND, SW_VA_TIMERC_IO_BASE + TMR_IRQ_STA_REG);
++            clear_bit(POWER_FAIL_IRQ_BIT, &powerfail_bits);
++            return IRQ_HANDLED;
++        } else {
++            printk(KERN_INFO DEVICE_NAME ": Multiple CPU IRQ\n");
++        }
++    }
++    return IRQ_NONE;
++}
++
++static struct irqaction sw_timer5_irq = {
++    .name = "timer5",
++    .flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
++    .handler = sunxi_isr_timer5,
++    .irq = SW_INT_IRQNO_TIMER5,
++};
++
++#endif
++
++static int powerfail_open(struct inode *inode, struct file *filp)
++{
++    return nonseekable_open(inode, filp);
++}
++
++static int powerfail_close(struct inode *pinode, struct file *pfile)
++{
++    return 0;
++}
++
++static ssize_t powerfail_read(struct file *filp, char __user *buffer, size_t count, loff_t *ppos)
++{
++    int err;
++    char value = 'o'; //power ok
++
++    if (count >= sizeof(value)) {
++        if (test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++            value = 'f'; //power fail
++        }
++        err = copy_to_user(buffer, &value, sizeof(value));
++        return err ? -EFAULT : sizeof(value);
++    } else {
++        return 0;
++    }
++}
++
++static ssize_t powerfail_write(struct file *filp, const char __user *user_buffer, size_t count, loff_t *ppos)
++{
++    char *buffer = NULL;
++    int err;
++    int retval = 0;
++
++    if (count >= 1) {
++        
++        buffer = kzalloc(count, GFP_KERNEL);
++        if (!buffer)
++            return -ENOMEM;
++
++        err = copy_from_user(buffer, user_buffer, count);
++         if (err) {
++            retval = -EFAULT;
++        } else {
++            if (buffer[0] == 'O' || buffer[0] == 'o') { //open lcd
++                open_lcd();
++            } else if (buffer[0] == 'C' || buffer[0] == 'c') { //close lcd
++                close_lcd();
++            } else if (buffer[0] == 'T' || buffer[0] == 't') { //test power-fail
++                printk(KERN_INFO DEVICE_NAME ": Test Power Fail \n");
++                if (test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++                    powerup_event();
++                } else {
++                    powerfail_event();
++                }
++            }
++            retval = count;
++        }
++
++        kfree(buffer);
++    }
++
++    return retval;
++}
++
++static struct file_operations dev_fops = {
++    .owner          =   THIS_MODULE,
++    .open           =   powerfail_open,
++    .release        =   powerfail_close,
++    .read           =   powerfail_read,
++    .write          =   powerfail_write,
++};
++
++static struct miscdevice misc = {
++    .minor = MISC_DYNAMIC_MINOR,
++    .name  = DEVICE_NAME,
++    .fops  = &dev_fops,
++    .mode  = 0666,
++};
++
++static int __init powerfail_init(void)
++{
++    int ret = 0;
++
++    powerfail_bits = 0;
++
++    powerup_event();
++    open_lcd();
++
++#ifdef CONFIG_PLAT_SUNXI
++
++    ret = script_parser_fetch("power_fail", "power_fail_used", &power_fail_used, sizeof(int));
++
++    if (ret) {
++        ret = -EINVAL;
++        power_fail_used = 0;
++        printk(KERN_ERR DEVICE_NAME ": failed to get power_fail used information\n");
++        goto returnerr;
++    } else if (power_fail_used == 1) {
++        power_fail_port_handler = gpio_request_ex("power_fail", "power_fail_port");
++
++        if (!power_fail_port_handler) {
++            ret = -EINVAL;
++            printk(KERN_ERR DEVICE_NAME ": request gpio failure. \n");
++            goto returnerr;
++        } else {
++            system_gpio_set_t * power_fail_port_gpio_set = sunxi_get_gpio_set_t_addr(power_fail_port_handler, NULL);
++            power_fail_port_addr = PIO_REG_DATA(power_fail_port_gpio_set->port);
++            power_fail_port_num = power_fail_port_gpio_set->port_num;
++            if (script_parser_fetch("power_fail", "power_fail_count", &max_fail_count, sizeof(int))) {
++                max_fail_count = 5;
++                printk(KERN_INFO DEVICE_NAME ": failed to get power_fail_count. \n");
++            }
++
++        }
++
++        if (!ret) {
++            writel(180, SW_VA_TIMERC_IO_BASE + TMR5_INTV_VALUE_REG);
++            writel(TMR5_CTRL_MODE | TMR5_CTRL_CLK_PRES | TMR5_CTRL_CLK_SRC | TMR5_CTRL_RELOAD | TMR5_CTRL_EN, SW_VA_TIMERC_IO_BASE + TMR5_CTRL_REG);
++
++            ret = setup_irq(SW_INT_IRQNO_TIMER5, &sw_timer5_irq);
++
++            if (ret) {
++                printk(KERN_ERR DEVICE_NAME ": setup irq failure. \n");
++                goto freegpio;
++            }
++        }
++    } else {
++        ret = -EINVAL;
++    }
++
++    
++#endif
++    if (!ret) {
++        ret = misc_register(&misc);
++        if(!ret) {
++#ifdef CONFIG_PLAT_SUNXI
++            writel(readl(SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG) | TMR5_IRQ_EN, SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG);
++#endif
++            printk(KERN_INFO DEVICE_NAME ": Init\n");
++        } else {
++            printk(KERN_ERR DEVICE_NAME ": register failure\n");
++            goto freeirq;
++        }
++    }
++
++    return 0;
++freeirq:
++#ifdef CONFIG_PLAT_SUNXI
++    remove_irq(SW_INT_IRQNO_TIMER5, &sw_timer5_irq);
++freegpio:
++    gpio_release(power_fail_port_handler, 1);
++returnerr:
++#endif
++    return ret;
++}
++
++static void __exit powerfail_exit(void)
++{
++#ifdef CONFIG_PLAT_SUNXI
++    writel(readl(SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG) & ~TMR5_IRQ_EN, SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG);
++    remove_irq(SW_INT_IRQNO_TIMER5, &sw_timer5_irq);
++    gpio_release(power_fail_port_handler, 1);
++#endif
++    misc_deregister(&misc);
++    printk(KERN_INFO DEVICE_NAME ": Cleanup\n");
++}
++
++module_init(powerfail_init);
++module_exit(powerfail_exit);
++
++MODULE_LICENSE("GPL");
++MODULE_VERSION("1.0.0.0");
++MODULE_AUTHOR("Özgür Keleş <ozgur.keles@ries.com.tr>");
++MODULE_DESCRIPTION("power-fail driver");
+-- 
+2.6.0
+
