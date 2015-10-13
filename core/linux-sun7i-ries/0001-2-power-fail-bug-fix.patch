@@ -1,0 +1,204 @@
+From 1962d1aa18ab7238d5c0cf25ba47c8f280313a1c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgurkeles@gmail.com>
+Date: Tue, 13 Oct 2015 13:22:22 +0300
+Subject: [PATCH] 2-power-fail bug fix
+
+---
+ drivers/misc/power-fail.c | 81 ++++++++++++++++++++++++++++-------------------
+ 1 file changed, 48 insertions(+), 33 deletions(-)
+
+diff --git a/drivers/misc/power-fail.c b/drivers/misc/power-fail.c
+index e2ae5fc..ca9e720 100644
+--- a/drivers/misc/power-fail.c
++++ b/drivers/misc/power-fail.c
+@@ -68,11 +68,17 @@ static void disp_resume(void)
+ 
+ #define DEVICE_NAME "power-fail"
+ 
++enum PowerFailBits
++{
++    PowerFailEventBit = 0
++    , PowerFailLCDCloseBit
++    , PowerFailIRQBit
++    , PowerFailStartIRQ
++
++
++    , PowerFailBitCount
++};
+ 
+-#define POWER_FAIL_EVENT_BIT        0
+-#define POWER_FAIL_LCD_CLOSE_BIT    1
+-#define POWER_FAIL_IRQ_BIT          2
+-#define POWER_FAIL_START_IRQ        3
+ 
+ 
+ static unsigned long powerfail_bits = 0;
+@@ -81,7 +87,7 @@ static struct timespec power_down_time;
+ 
+ static void close_lcd(void)
+ {
+-    if (!test_and_set_bit(POWER_FAIL_LCD_CLOSE_BIT, &powerfail_bits)) {
++    if (!test_and_set_bit(PowerFailLCDCloseBit, &powerfail_bits)) {
+ #ifdef CONFIG_FB_SUNXI
+         disp_suspend();
+ #endif
+@@ -90,21 +96,27 @@ static void close_lcd(void)
+ 
+ static void open_lcd(void)
+ {
+-    if (test_and_clear_bit(POWER_FAIL_LCD_CLOSE_BIT, &powerfail_bits)) {
++    if (test_and_clear_bit(PowerFailLCDCloseBit, &powerfail_bits)) {
+ #ifdef CONFIG_FB_SUNXI
+         disp_resume();
+ #endif
+-        if(test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++        if(test_bit(PowerFailEventBit, &powerfail_bits)) {
+             struct timespec open_lcd_time;
++            long ms;
+             jiffies_to_timespec(jiffies, &open_lcd_time);
+-            printk(KERN_INFO DEVICE_NAME ": (Open Lcd Time - Power Down Time) %d sec %ld nsec\n", (int)(open_lcd_time.tv_sec - power_down_time.tv_sec), (long)(open_lcd_time.tv_nsec - power_down_time.tv_nsec));
++
++            ms = (long)(open_lcd_time.tv_nsec - power_down_time.tv_nsec);
++            ms /= 1000000;
++            ms += ((int)(open_lcd_time.tv_sec - power_down_time.tv_sec)) * 1000;
++            
++            printk(KERN_INFO DEVICE_NAME ": (Open Lcd Time - Power Down Time) %ld msec\n", ms);
+         }
+     }
+ }
+ 
+ static void start_timer_interrupt(void)
+ {
+-    if (!test_and_set_bit(POWER_FAIL_START_IRQ, &powerfail_bits)) {
++    if (!test_and_set_bit(PowerFailStartIRQ, &powerfail_bits)) {
+         printk(KERN_INFO DEVICE_NAME ": Start Timer Interrupt\n");
+ #ifdef CONFIG_PLAT_SUNXI
+         writel(readl(SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG) | TMR5_IRQ_EN, SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG);
+@@ -114,7 +126,7 @@ static void start_timer_interrupt(void)
+ 
+ static void stop_timer_interrupt(void)
+ {
+-    if (test_and_clear_bit(POWER_FAIL_START_IRQ, &powerfail_bits)) {
++    if (test_and_clear_bit(PowerFailStartIRQ, &powerfail_bits)) {
+         printk(KERN_INFO DEVICE_NAME ": Stop Timer Interrupt\n");
+ #ifdef CONFIG_PLAT_SUNXI
+         writel(readl(SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG) & ~TMR5_IRQ_EN, SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG);
+@@ -125,9 +137,10 @@ static void stop_timer_interrupt(void)
+ 
+ static void powerfail_event(void)
+ {
+-    jiffies_to_timespec(jiffies, &power_down_time);
++    struct timespec now;
+ 
+-    if (!test_and_set_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits) && (power_down_time.tv_sec - last_power_up_time.tv_sec) >= 5) {
++    if (!test_and_set_bit(PowerFailEventBit, &powerfail_bits)) {
++        jiffies_to_timespec(jiffies, &power_down_time);
+         kill_cad_pid(SIGPWR, 1);
+         close_lcd();
+     }
+@@ -135,8 +148,13 @@ static void powerfail_event(void)
+ 
+ static void powerup_event(void)
+ {
+-    if (test_and_clear_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++    struct timespec now;
++
++    jiffies_to_timespec(jiffies, &now);
++
++    if (test_bit(PowerFailEventBit, &powerfail_bits) && (now.tv_sec - power_down_time.tv_sec) >= 10 && test_and_clear_bit(PowerFailEventBit, &powerfail_bits)) {
+         jiffies_to_timespec(jiffies, &last_power_up_time);
++        printk(KERN_INFO DEVICE_NAME ": Power Up Event Sec: %d\n", last_power_up_time.tv_sec);
+     }
+ }
+ 
+@@ -201,34 +219,33 @@ static int power_fail_used = 0;
+ 
+ 
+ 
+-
+-
+-
+ static irqreturn_t sunxi_isr_timer5(int irq, void *dummy)
+ {
+     if (readl(SW_VA_TIMERC_IO_BASE + TMR_IRQ_STA_REG) & TMR5_IRQ_PEND) {
+ 
+-        if (!test_and_set_bit(POWER_FAIL_IRQ_BIT, &powerfail_bits)) {
+-            if (power_fail_port_addr) { //POWER_FAIL_IRQ_BIT
++        if (!test_and_set_bit(PowerFailIRQBit, &powerfail_bits)) {
++            if (power_fail_port_addr) {
+                 if ( !((*power_fail_port_addr) & (1 << power_fail_port_num)) ) {
+                     fail_count++;
+                 } else {
+                     fail_count = 0;
+                 }
+                 
+-                if (fail_count >= max_fail_count && !test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
+-                    powerfail_event();
+-                }
+-
+-                if (!fail_count && test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++                if (!fail_count && test_bit(PowerFailEventBit, &powerfail_bits)) {
+                     powerup_event();
+                 }
+                 
++                if (fail_count >= max_fail_count && !test_bit(PowerFailEventBit, &powerfail_bits)) {
++                    powerfail_event();
++                }
++
++                if (fail_count >= (max_fail_count * 2))
++                    fail_count = 0;
+             }
+             
+ 
+             writel(TMR5_IRQ_PEND, SW_VA_TIMERC_IO_BASE + TMR_IRQ_STA_REG);
+-            clear_bit(POWER_FAIL_IRQ_BIT, &powerfail_bits);
++            clear_bit(PowerFailIRQBit, &powerfail_bits);
+             return IRQ_HANDLED;
+         } else {
+             printk(KERN_INFO DEVICE_NAME ": Multiple CPU IRQ\n");
+@@ -263,7 +280,7 @@ static ssize_t powerfail_read(struct file *filp, char __user *buffer, size_t cou
+     char value = 'o'; //power ok
+ 
+     if (count >= sizeof(value)) {
+-        if (test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
++        if (test_bit(PowerFailEventBit, &powerfail_bits)) {
+             value = 'f'; //power fail
+         }
+         err = copy_to_user(buffer, &value, sizeof(value));
+@@ -293,12 +310,10 @@ static ssize_t powerfail_write(struct file *filp, const char __user *user_buffer
+                 open_lcd();
+             } else if (buffer[0] == 'C' || buffer[0] == 'c') { //close lcd
+                 close_lcd();
+-            } else if (buffer[0] == 'T' || buffer[0] == 't') { //test power-fail
+-                printk(KERN_INFO DEVICE_NAME ": Test Power Fail \n");
+-                if (test_bit(POWER_FAIL_EVENT_BIT, &powerfail_bits)) {
+-                    powerup_event();
+-                } else {
+-                    powerfail_event();
++            } else if (buffer[0] == 'D' || buffer[0] == 'd') { //Debug
++                int bit_index;
++                for (bit_index = 0; bit_index < PowerFailBitCount; bit_index++) {
++                    printk(KERN_INFO DEVICE_NAME ": Bit %d: %d\n", bit_index, test_bit(bit_index, &powerfail_bits));
+                 }
+             }
+             retval = count;
+@@ -331,7 +346,7 @@ static int __init powerfail_init(void)
+ 
+     powerfail_bits = 0;
+ 
+-    powerup_event();
++    jiffies_to_timespec(jiffies, &last_power_up_time);
+     open_lcd();
+ 
+ #ifdef CONFIG_PLAT_SUNXI
+@@ -414,6 +429,6 @@ module_init(powerfail_init);
+ module_exit(powerfail_exit);
+ 
+ MODULE_LICENSE("GPL");
+-MODULE_VERSION("1.0.0.1");
++MODULE_VERSION("1.0.0.2");
+ MODULE_AUTHOR("Özgür Keleş <ozgur.keles@ries.com.tr>");
+ MODULE_DESCRIPTION("power-fail driver");
+-- 
+2.6.0
+
