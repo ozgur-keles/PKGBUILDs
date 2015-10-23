@@ -1,0 +1,161 @@
+From 77b88c033f0a702f6c9ff56640f9e380fcd0b928 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgur.keles@ries.com.tr>
+Date: Fri, 23 Oct 2015 16:46:51 +0300
+Subject: [PATCH] =?UTF-8?q?3-power-fail=20bug=20fix=20super=20kapasit?=
+ =?UTF-8?q?=C3=B6r=C3=BC=20aktif=20ve=20pasif=20yapma=20=C3=B6zelli=C4=9Fi?=
+ =?UTF-8?q?=20eklendi.?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ drivers/misc/power-fail.c | 54 +++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 45 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/misc/power-fail.c b/drivers/misc/power-fail.c
+index ca9e720..abf1a24 100644
+--- a/drivers/misc/power-fail.c
++++ b/drivers/misc/power-fail.c
+@@ -12,11 +12,10 @@
+ #include <linux/sched.h>
+ #include <linux/wait.h>
+ #include <linux/jiffies.h>
+-#include <linux/sched.h>
+ #include <asm/uaccess.h>
+ #include <asm/atomic.h>
+-#include <linux/sched.h>
+ #include <linux/slab.h>
++#include <linux/string.h>
+ 
+ #ifdef CONFIG_PLAT_SUNXI
+ #include <plat/sys_config.h>
+@@ -74,6 +73,7 @@ enum PowerFailBits
+     , PowerFailLCDCloseBit
+     , PowerFailIRQBit
+     , PowerFailStartIRQ
++    , PowerFailSuperCapEnable
+ 
+ 
+     , PowerFailBitCount
+@@ -212,6 +212,7 @@ static system_gpio_set_t * sunxi_get_gpio_set_t_addr(u32 p_handler, const char *
+ 
+ static int fail_count = 0;
+ static unsigned int power_fail_port_handler = 0;
++static unsigned int power_fail_super_cap_port_handler = 0;
+ static volatile unsigned int *power_fail_port_addr = NULL;
+ static int power_fail_port_num;
+ static unsigned int max_fail_count = 0;
+@@ -263,6 +264,27 @@ static struct irqaction sw_timer5_irq = {
+ 
+ #endif
+ 
++
++static void enable_super_cap(void)
++{
++    if (!test_and_set_bit(PowerFailSuperCapEnable, &powerfail_bits)) {
++        printk(KERN_INFO DEVICE_NAME ": Enable Super Cap\n");
++#ifdef CONFIG_PLAT_SUNXI
++        gpio_write_one_pin_value(power_fail_super_cap_port_handler, 1, NULL);
++#endif
++    }
++}
++
++static void disable_super_cap(void)
++{
++    if (test_and_clear_bit(PowerFailSuperCapEnable, &powerfail_bits)) {
++        printk(KERN_INFO DEVICE_NAME ": Disable Super Cap\n");
++#ifdef CONFIG_PLAT_SUNXI
++        gpio_write_one_pin_value(power_fail_super_cap_port_handler, 0, NULL);
++#endif
++    }
++}
++
+ static int powerfail_open(struct inode *inode, struct file *filp)
+ {
+     start_timer_interrupt();
+@@ -306,15 +328,19 @@ static ssize_t powerfail_write(struct file *filp, const char __user *user_buffer
+          if (err) {
+             retval = -EFAULT;
+         } else {
+-            if (buffer[0] == 'O' || buffer[0] == 'o') { //open lcd
++            if (strcmp(buffer, "open_lcd") == 0) { //open lcd
+                 open_lcd();
+-            } else if (buffer[0] == 'C' || buffer[0] == 'c') { //close lcd
++            } else if (strcmp(buffer, "close_lcd") == 0) { //close lcd
+                 close_lcd();
+-            } else if (buffer[0] == 'D' || buffer[0] == 'd') { //Debug
++            } else if (strcmp(buffer, "debug") == 0) { //debug
+                 int bit_index;
+                 for (bit_index = 0; bit_index < PowerFailBitCount; bit_index++) {
+                     printk(KERN_INFO DEVICE_NAME ": Bit %d: %d\n", bit_index, test_bit(bit_index, &powerfail_bits));
+                 }
++            } else if (strcmp(buffer, "enable_super_cap") == 0) { //enable super cap
++                enable_super_cap();
++            } else if (strcmp(buffer, "disable_super_cap") == 0) { //disable super cap
++                disable_super_cap();
+             }
+             retval = count;
+         }
+@@ -363,7 +389,7 @@ static int __init powerfail_init(void)
+ 
+         if (!power_fail_port_handler) {
+             ret = -EINVAL;
+-            printk(KERN_ERR DEVICE_NAME ": request gpio failure. \n");
++            printk(KERN_ERR DEVICE_NAME ": request power_fail gpio failure. \n");
+             goto returnerr;
+         } else {
+             system_gpio_set_t * power_fail_port_gpio_set = sunxi_get_gpio_set_t_addr(power_fail_port_handler, NULL);
+@@ -373,7 +399,14 @@ static int __init powerfail_init(void)
+                 max_fail_count = 5;
+                 printk(KERN_INFO DEVICE_NAME ": failed to get power_fail_count. \n");
+             }
++        }
+ 
++        power_fail_super_cap_port_handler = gpio_request_ex("power_fail", "power_fail_super_cap_port");
++
++        if (!power_fail_super_cap_port_handler) {
++            ret = -EINVAL;
++            printk(KERN_ERR DEVICE_NAME ": request super_cap gpio failure. \n");
++            goto freegpio_power_fail;
+         }
+ 
+         if (!ret) {
+@@ -384,7 +417,7 @@ static int __init powerfail_init(void)
+ 
+             if (ret) {
+                 printk(KERN_ERR DEVICE_NAME ": setup irq failure. \n");
+-                goto freegpio;
++                goto freegpio_super_cap;
+             }
+         }
+     } else {
+@@ -407,7 +440,9 @@ static int __init powerfail_init(void)
+ freeirq:
+ #ifdef CONFIG_PLAT_SUNXI
+     remove_irq(SW_INT_IRQNO_TIMER5, &sw_timer5_irq);
+-freegpio:
++freegpio_super_cap:
++    gpio_release(power_fail_super_cap_port_handler, 1);
++freegpio_power_fail:
+     gpio_release(power_fail_port_handler, 1);
+ returnerr:
+ #endif
+@@ -419,6 +454,7 @@ static void __exit powerfail_exit(void)
+     stop_timer_interrupt();
+ #ifdef CONFIG_PLAT_SUNXI
+     remove_irq(SW_INT_IRQNO_TIMER5, &sw_timer5_irq);
++    gpio_release(power_fail_super_cap_port_handler, 1);
+     gpio_release(power_fail_port_handler, 1);
+ #endif
+     misc_deregister(&misc);
+@@ -429,6 +465,6 @@ module_init(powerfail_init);
+ module_exit(powerfail_exit);
+ 
+ MODULE_LICENSE("GPL");
+-MODULE_VERSION("1.0.0.2");
++MODULE_VERSION("1.0.0.3");
+ MODULE_AUTHOR("Özgür Keleş <ozgur.keles@ries.com.tr>");
+ MODULE_DESCRIPTION("power-fail driver");
+-- 
+2.6.0
+
