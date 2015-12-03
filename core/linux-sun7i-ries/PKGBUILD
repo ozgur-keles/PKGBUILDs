@@ -9,7 +9,7 @@ _srcname=linux-sunxi-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="sun7i"
 pkgver=3.4.103
-pkgrel=10
+pkgrel=9
 arch=('armv7h')
 url="https://github.com/linux-sunxi/linux-sunxi/"
 license=('GPL2')
@@ -29,9 +29,7 @@ source=("https://github.com/linux-sunxi/linux-sunxi/archive/${_commit}.tar.gz"
         '0001-power-fail-driver-added.patch'
         '0001-1-power-fail-bug-fix.patch'
         '0001-2-power-fail-bug-fix.patch'
-        '0001-3-power-fail-bug-fix.patch'
-        '0001-4-power-fail-bug-fix.patch'
-        '0001-nand-info-message.patch')
+        '0001-3-power-fail-bug-fix.patch')
 md5sums=('6cdd44f9131a854cdbf5ddad86187c57'
          'f74bbefcd84c7d6626e2a763c6791556'
          'ef696cd502e517d32fc325294833e6bd'
@@ -46,9 +44,7 @@ md5sums=('6cdd44f9131a854cdbf5ddad86187c57'
          'dcfa8363b47140d36a62731e9a58ddce'
          'ae52d63f1912046d997d7d44a78bf3a5'
          '4884a9b138662c859d9d385f2a8b4cf3'
-         '549d445918fb294427f891a09f0e3f41'
-         '2cc7219400d123aae758fc9c44918ffc'
-         'c47ab8547d8636ce4c49125088a9d2d2')
+         '549d445918fb294427f891a09f0e3f41')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -68,8 +64,6 @@ prepare() {
   git apply ../0001-1-power-fail-bug-fix.patch
   git apply ../0001-2-power-fail-bug-fix.patch
   git apply ../0001-3-power-fail-bug-fix.patch
-  git apply ../0001-4-power-fail-bug-fix.patch
-  git apply ../0001-nand-info-message.patch
 
 
   # add pkgrel to extraversion
