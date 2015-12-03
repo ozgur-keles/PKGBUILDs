@@ -1,0 +1,25 @@
+From c3adf4893bc6fc9a895b711f55e60ff97d189867 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgur.keles@ries.com.tr>
+Date: Thu, 3 Dec 2015 10:27:14 +0200
+Subject: [PATCH] nand info message
+
+---
+ drivers/block/sunxi_nand/nfd/nand_blk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/block/sunxi_nand/nfd/nand_blk.c b/drivers/block/sunxi_nand/nfd/nand_blk.c
+index a632453..d9ea9a6 100644
+--- a/drivers/block/sunxi_nand/nfd/nand_blk.c
++++ b/drivers/block/sunxi_nand/nfd/nand_blk.c
+@@ -63,7 +63,7 @@
+ #endif
+ 
+ 
+-//#define BLK_INFO_MSG_ON
++#define BLK_INFO_MSG_ON
+ #ifdef  BLK_INFO_MSG_ON
+ #define dbg_inf(fmt, args...) printk("[NAND]"fmt, ## args)
+ #else
+-- 
+2.6.0
+
