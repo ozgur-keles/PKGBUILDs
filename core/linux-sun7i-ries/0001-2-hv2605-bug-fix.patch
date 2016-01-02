@@ -1,0 +1,69 @@
+From b7001a88cb836d1fa4995c7319fe0d2e88dc847f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgur.keles@ries.com.tr>
+Date: Sat, 2 Jan 2016 20:00:27 +0200
+Subject: [PATCH] =?UTF-8?q?2-hv2605-bug-fix=200=20ve=20ff=20hari=C3=A7=20d?=
+ =?UTF-8?q?i=C4=9Fer=20tu=C5=9Flar=20g=C3=B6nderilmesi=20i=C3=A7in=20key?=
+ =?UTF-8?q?=20bitleri=20set=20edildi.?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ drivers/input/keyboard/hv2605.c | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/input/keyboard/hv2605.c b/drivers/input/keyboard/hv2605.c
+index 2ab2fbf..ccaeb76 100644
+--- a/drivers/input/keyboard/hv2605.c
++++ b/drivers/input/keyboard/hv2605.c
+@@ -336,15 +336,21 @@ static void hv_read_loop(struct work_struct *work)
+ 			case 0:
+ 			break;
+ 			case 0xff:
+-				if(event->key_status == 1){
+-				event->key_val = event->key_last;
+-				hv_keypad_release();
++				if(event->key_status == 1) {
++					event->key_val = event->key_last;
++					hv_keypad_release();
+ 				}
+ 			break;
+ 			default:
+-				if(event->key_last != event->key_val){
+-				event->key_last = event->key_val;
+-				hv_report_value();
++				if(event->key_last != event->key_val) {
++					if (event->key_status == 1) {
++						int temp_key = event->key_val;
++						event->key_val = event->key_last;
++						hv_keypad_release();
++						event->key_val = temp_key;
++					}
++					event->key_last = event->key_val;
++					hv_report_value();
+ 				}
+ 			break;
+ 
+@@ -402,14 +408,13 @@ static int hv_keypad_probe(struct i2c_client *client, const struct i2c_device_id
+ 
+ 	input_dev->name = HV_NAME;
+ 	input_dev->phys = "sun4ikbd/inputx";
+-	input_dev->id.bustype = BUS_HOST;
+-	input_dev->id.vendor = 0x0001;
+-	input_dev->id.product = 0x0001;
+-	input_dev->id.version = 0x0100;
++	input_dev->id.bustype = BUS_I2C;
++	input_dev->dev.parent = &client->dev;
++	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+ 
+-	input_dev->evbit[0] = BIT_MASK(EV_KEY);
++	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
+ 
+-	for (i = 1; i < 6; i++)
++	for (i = 1; i < 0xff; i++)
+ 		set_bit(i, input_dev->keybit);
+ 
+ 	err = input_register_device(input_dev);
+-- 
+2.6.4
+
