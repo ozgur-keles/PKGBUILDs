@@ -1,0 +1,59 @@
+From 719828844cf46b79d5bd6ed6e181abefd36b4a71 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=96zg=C3=BCr=20Kele=C5=9F?= <ozgur.keles@ries.com.tr>
+Date: Sat, 2 Jan 2016 16:03:38 +0200
+Subject: [PATCH] =?UTF-8?q?1-hv2605-bug-fix=20hv2605=20driver=20inda=20d?=
+ =?UTF-8?q?=C3=BCzenleme=20yap=C4=B1ld=C4=B1.=200=20ve=20ff=20hari=C3=A7?=
+ =?UTF-8?q?=20di=C4=9Fer=20de=C4=9Ferler=20tu=C5=9F=20olarak=20alg=C4=B1na?=
+ =?UTF-8?q?n=C4=B1p=20rapor=20ediliyor.?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ drivers/input/keyboard/hv2605.c | 27 ++++++++++-----------------
+ 1 file changed, 10 insertions(+), 17 deletions(-)
+
+diff --git a/drivers/input/keyboard/hv2605.c b/drivers/input/keyboard/hv2605.c
+index 0c280d4..2ab2fbf 100644
+--- a/drivers/input/keyboard/hv2605.c
++++ b/drivers/input/keyboard/hv2605.c
+@@ -333,26 +333,19 @@ static void hv_read_loop(struct work_struct *work)
+ 	{
+ 		switch(event->key_val)
+ 		{
+-			case 1:
+-			case 2:
+-			case 3:
+-			case 4:
+-			case 5:
+-			if(event->key_last != event->key_val){
+-			event->key_last = event->key_val;
+-			hv_report_value();
+-			}
++			case 0:
+ 			break;
+-
+ 			case 0xff:
+-			if(event->key_status == 1){
+-			event->key_val = event->key_last;
+-			hv_keypad_release();
+-			}
++				if(event->key_status == 1){
++				event->key_val = event->key_last;
++				hv_keypad_release();
++				}
+ 			break;
+-
+-			default :
+-			//hv_keypad_release();
++			default:
++				if(event->key_last != event->key_val){
++				event->key_last = event->key_val;
++				hv_report_value();
++				}
+ 			break;
+ 
+ 		}
+-- 
+2.6.4
+
